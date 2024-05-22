@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
 
-cdk deploy -c env=dev
+cd ./cdk
+cdk deploy -c env=dev --require-approval never
 

@@ -2,6 +2,8 @@ import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as apigateway from "aws-cdk-lib/aws-apigateway";
 
 export class MainStack extends cdk.Stack {
 	constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -32,8 +34,20 @@ export class MainStack extends cdk.Stack {
 			"CloudRestaurantUserPoolClient",
 			{
 				userPool,
+				generateSecret: false,
+				authFlows: {
+					userPassword: true,
+					userSrp: true
+				},
 			}
 		);
+
+		const userPoolDomain = new cognito.UserPoolDomain(this, "UserPoolDomain", {
+			userPool,
+			cognitoDomain: {
+				domainPrefix: `${env}-cloud-restaurant-user-pool`,
+			},
+		});
 
 		const identityPool = new cognito.CfnIdentityPool(
 			this,
@@ -85,12 +99,62 @@ export class MainStack extends cdk.Stack {
 			}
 		);
 
+		const helloWorldLambda = new lambda.Function(
+			this,
+			"CloudRestaurantLambdaApi",
+			{
+				runtime: lambda.Runtime.NODEJS_20_X,
+				handler: "index.handler",
+				code: lambda.Code.fromInline(`
+        exports.handler = async function(event) {
+          return {
+            statusCode: 200,
+            body: JSON.stringify({ message: "Hello, World!" })
+          };
+        };
+      `),
+			}
+		);
+
+		const api = new apigateway.RestApi(this, "CloudRestaurantRestApi", {
+			restApiName: `${env}-cloud-restaurant-rest-api`,
+			deployOptions: {
+				stageName: env,
+			},
+		});
+
+		const authorizer = new apigateway.CognitoUserPoolsAuthorizer(
+			this,
+			"CognitoAuthorizer",
+			{
+				cognitoUserPools: [userPool],
+			}
+		);
+
+		const helloResource = api.root.addResource("hello");
+		helloResource.addMethod(
+			"GET",
+			new apigateway.LambdaIntegration(helloWorldLambda),
+			{
+				authorizer,
+				authorizationType: apigateway.AuthorizationType.COGNITO,
+			}
+		);
+
 		// OUTPUTS
+		new cdk.CfnOutput(this, "CognitoDomain", {
+			value: `https://${userPoolDomain.domainName}.auth.${
+				cdk.Stack.of(this).region
+			}.amazoncognito.com`,
+		});
 		new cdk.CfnOutput(this, "UserPoolId", {
 			value: userPool.userPoolId,
 		});
 		new cdk.CfnOutput(this, "IdentityPoolId", {
 			value: identityPool.ref,
+		});
+		new cdk.CfnOutput(this, "ApiUrl", {
+			value: api.url,
 		});
 	}
 }
