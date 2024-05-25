@@ -1,17 +1,13 @@
 import React from "react";
+import { Menu, Button } from "antd";
 
 type Props = {
 	text: string;
-	key: string;
 	onClick: any;
 };
 
-const NavbarMenuItem = ({ text, key, onClick }: Props) => {
-	return (
-		<a key={key} onClick={onClick}>
-			{text}
-		</a>
-	);
+const NavbarMenuItem = ({ text, onClick }: Props) => {
+	return <a onClick={onClick}>{text}</a>;
 };
 
 export default NavbarMenuItem;

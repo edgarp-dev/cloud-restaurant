@@ -23,7 +23,7 @@ export default function App() {
 			label: (
 				<Authenticator>
 					{({ signOut }) => (
-						<NavbarMenuItem key="logout" text="Logout" onClick={signOut} />
+						<NavbarMenuItem text="Logout" onClick={signOut} />
 					)}
 				</Authenticator>
 			),
