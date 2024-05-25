@@ -4,6 +4,8 @@ import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import path = require("path");
 
 export class MainStack extends cdk.Stack {
 	constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -12,7 +14,7 @@ export class MainStack extends cdk.Stack {
 		const env = this.node.tryGetContext("env");
 
 		const userPool = new cognito.UserPool(this, "CloudRestaurantUserPool", {
-			userPoolName: `${env}-cloud-restaurant-user-pool`,
+			userPoolName: `cloud-restaurant-user-pool-${env}`,
 			signInAliases: {
 				email: true,
 			},
@@ -37,7 +39,7 @@ export class MainStack extends cdk.Stack {
 				generateSecret: false,
 				authFlows: {
 					userPassword: true,
-					userSrp: true
+					userSrp: true,
 				},
 			}
 		);
@@ -45,7 +47,7 @@ export class MainStack extends cdk.Stack {
 		const userPoolDomain = new cognito.UserPoolDomain(this, "UserPoolDomain", {
 			userPool,
 			cognitoDomain: {
-				domainPrefix: `${env}-cloud-restaurant-user-pool`,
+				domainPrefix: `cloud-restaurant-user-pool-${env}`,
 			},
 		});
 
@@ -53,7 +55,7 @@ export class MainStack extends cdk.Stack {
 			this,
 			"CloudRestaurantIdentityPool",
 			{
-				identityPoolName: `${env}-cloud-restaurant-identity-pool`,
+				identityPoolName: `cloud-restaurant-identity-pool-${env}`,
 				allowUnauthenticatedIdentities: false,
 				cognitoIdentityProviders: [
 					{
@@ -99,25 +101,8 @@ export class MainStack extends cdk.Stack {
 			}
 		);
 
-		const helloWorldLambda = new lambda.Function(
-			this,
-			"CloudRestaurantLambdaApi",
-			{
-				runtime: lambda.Runtime.NODEJS_20_X,
-				handler: "index.handler",
-				code: lambda.Code.fromInline(`
-        exports.handler = async function(event) {
-          return {
-            statusCode: 200,
-            body: JSON.stringify({ message: "Hello, World!" })
-          };
-        };
-      `),
-			}
-		);
-
 		const api = new apigateway.RestApi(this, "CloudRestaurantRestApi", {
-			restApiName: `${env}-cloud-restaurant-rest-api`,
+			restApiName: `cloud-restaurant-rest-api-${env}`,
 			defaultCorsPreflightOptions: {
 				allowOrigins: apigateway.Cors.ALL_ORIGINS, // Allow all origins for simplicity
 				allowMethods: apigateway.Cors.ALL_METHODS, // Allow all methods
@@ -136,10 +121,48 @@ export class MainStack extends cdk.Stack {
 			}
 		);
 
+		const menuTable = new dynamodb.Table(this, "CloudRestaurantMenu", {
+			tableName: `cloud-restaurant-menu-db-${env}`,
+			partitionKey: { name: "Id", type: dynamodb.AttributeType.STRING },
+			billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+		});
+
+		const apiLambda = new lambda.Function(this, "CloudRestaurantApiLambda", {
+			functionName: `cloud-restaurant-api-${env}`,
+			runtime: lambda.Runtime.NODEJS_20_X,
+			handler: "src/index.handler",
+			code: lambda.Code.fromAsset(path.join(__dirname, "..", "..", "api"), {
+				bundling: {
+					image: lambda.Runtime.NODEJS_20_X.bundlingImage,
+					command: [
+						"bash",
+						"-c",
+						"npm install && npm run build && cp -r dist/* /asset-output/ && cp -r node_modules /asset-output/",
+					],
+				},
+			}),
+			environment: {
+				TABLE_NAME: menuTable.tableName,
+			},
+		});
+
+		menuTable.grantReadData(apiLambda);
+
 		const helloResource = api.root.addResource("hello");
 		helloResource.addMethod(
 			"GET",
-			new apigateway.LambdaIntegration(helloWorldLambda),
+			new apigateway.LambdaIntegration(apiLambda),
+			{
+				authorizer,
+				authorizationType: apigateway.AuthorizationType.COGNITO,
+			}
+		);
+
+
+		const menuResource = api.root.addResource("menu");
+		menuResource.addMethod(
+			"GET",
+			new apigateway.LambdaIntegration(apiLambda),
 			{
 				authorizer,
 				authorizationType: apigateway.AuthorizationType.COGNITO,
