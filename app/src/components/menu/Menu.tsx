@@ -1,5 +1,5 @@
 import React from "react";
-import { Flex, Layout, Card } from "antd";
+import { Flex, Layout } from "antd";
 import { useMenu } from "../../api";
 import Empty from "../ui/empty";
 import MenuItem from "./MenuItem";
