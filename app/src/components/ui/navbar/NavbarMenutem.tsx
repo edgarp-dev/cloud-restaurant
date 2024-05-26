@@ -1,5 +1,4 @@
 import React from "react";
-import { Menu, Button } from "antd";
 
 type Props = {
 	text: string;
