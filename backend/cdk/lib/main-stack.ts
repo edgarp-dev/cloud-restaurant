@@ -104,9 +104,9 @@ export class MainStack extends cdk.Stack {
 		const api = new apigateway.RestApi(this, "CloudRestaurantRestApi", {
 			restApiName: `cloud-restaurant-rest-api-${env}`,
 			defaultCorsPreflightOptions: {
-				allowOrigins: apigateway.Cors.ALL_ORIGINS, // Allow all origins for simplicity
-				allowMethods: apigateway.Cors.ALL_METHODS, // Allow all methods
-				allowHeaders: ["Authorization", "Content-Type"], // Allow these headers
+				allowOrigins: apigateway.Cors.ALL_ORIGINS,
+				allowMethods: apigateway.Cors.ALL_METHODS,
+				allowHeaders: ["Authorization", "Content-Type"],
 			},
 			deployOptions: {
 				stageName: env,
