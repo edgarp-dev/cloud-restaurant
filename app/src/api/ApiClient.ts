@@ -5,7 +5,7 @@ export default class ApliClient {
 	private static instance: ApliClient;
 
 	private readonly baseUrl =
-		"https://c4elgsi3nf.execute-api.us-east-1.amazonaws.com/dev";
+		"https://avwsn6v6rc.execute-api.us-east-1.amazonaws.com/dev";
 
 	private readonly accessToken: string | undefined;
 
@@ -13,7 +13,7 @@ export default class ApliClient {
 		this.accessToken = accessToken;
 	}
 
-	public async get(endpoint: string): Promise<void> {
+	public async get<T>(endpoint: string): Promise<T | undefined> {
 		try {
 			const config: AxiosRequestConfig = {
 				headers: {
@@ -23,7 +23,8 @@ export default class ApliClient {
 			};
 
 			const response = await axios.get(`${this.baseUrl}${endpoint}`, config);
-			console.log(response);
+
+			return response.data;
 		} catch (error) {
 			console.error(error);
 		}

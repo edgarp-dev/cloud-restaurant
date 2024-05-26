@@ -11,20 +11,20 @@ type Props = {
 
 const Navbar = ({ menuItems }: Props) => {
 	return (
-		<Layout className="layout">
+		<Layout>
 			<Header
 				style={{
 					display: "flex",
 					justifyContent: "space-between",
 					alignItems: "center",
+					height: "60px"
 				}}
 			>
 				<div
-					className="logo"
 					style={{
 						fontSize: "24px",
 						fontWeight: "bold",
-                        color: "#fff"
+						color: "#fff",
 					}}
 				>
 					cloud restaurant
