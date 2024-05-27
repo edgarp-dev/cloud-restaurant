@@ -34,4 +34,14 @@ fastify.get("/menu", async (request, reply) => {
 	}
 });
 
+fastify.post("/orders/:menuId", async (request, reply) => {
+	const { menuId } = request.params as { menuId: string };
+	const { userId, quantity } = request.body as {
+		userId: string;
+		quantity: number;
+	};
+
+	console.log(menuId, userId, quantity);
+});
+
 export const handler: APIGatewayProxyHandlerV2 = awsLambdaFastify(fastify);

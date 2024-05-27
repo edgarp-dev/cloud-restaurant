@@ -13,11 +13,13 @@
 		"@aws-sdk/client-dynamodb": "^3.584.0",
 		"@aws-sdk/util-dynamodb": "^3.584.0",
 		"@fastify/aws-lambda": "^4.1.0",
+		"dotenv": "^16.4.5",
 		"fastify": "^4.27.0"
 	},
 	"devDependencies": {
 		"@types/aws-lambda": "^8.10.138",
 		"@types/node": "^20.12.12",
+		"nodemon": "^3.1.1",
 		"typescript": "^5.4.5"
 	}
 }
