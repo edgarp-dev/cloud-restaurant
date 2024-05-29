@@ -1,0 +1,20 @@
+{
+	"name": "step-function-trigger-lambda",
+	"version": "1.0.0",
+	"main": "index.js",
+	"scripts": {
+		"build": "tsc"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"description": "",
+	"devDependencies": {
+		"@types/aws-lambda": "^8.10.138",
+		"@types/node": "^20.12.12",
+		"typescript": "^5.4.5"
+	},
+	"dependencies": {
+		"@aws-sdk/client-sfn": "^3.583.0"
+	}
+}
