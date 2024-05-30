@@ -41,10 +41,10 @@ fastify.get("/menu", async (request, reply) => {
 	}
 });
 
-fastify.post("/orders/:menuId", async (request, reply) => {
-	const { menuId } = request.params as { menuId: string };
-	const { userId, quantity } = request.body as {
+fastify.post("/orders", async (request, reply) => {
+	const { userId, quantity, menuId } = request.body as {
 		userId: string;
+		menuId: string;
 		quantity: number;
 	};
 
@@ -55,6 +55,7 @@ fastify.post("/orders/:menuId", async (request, reply) => {
 		userId,
 		quantity: quantity.toString(),
 		orderDate,
+		status: "ORDER_CREATED",
 	};
 
 	try {

@@ -162,17 +162,20 @@ export class MainStack extends cdk.Stack {
 					orderDate: sfnTasks.DynamoAttributeValue.fromString(
 						sfn.JsonPath.stringAt("$.orderDate")
 					),
+					status: sfnTasks.DynamoAttributeValue.fromString(
+						sfn.JsonPath.stringAt("$.status")
+					),
 				},
 			}
 		);
 
-		const definition = processOrderStep;
+		const chain = processOrderStep;
 
 		const processOrderStepFunction = new sfn.StateMachine(
 			this,
 			"ProcessOrderStepFunction",
 			{
-				definition,
+				definitionBody: sfn.DefinitionBody.fromChainable(chain),
 				timeout: cdk.Duration.minutes(5),
 			}
 		);
