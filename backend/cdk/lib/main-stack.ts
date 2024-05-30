@@ -5,7 +5,11 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
-import path = require("path");
+import * as sqs from "aws-cdk-lib/aws-sqs";
+import * as sfn from "aws-cdk-lib/aws-stepfunctions";
+import * as sfnTasks from "aws-cdk-lib/aws-stepfunctions-tasks";
+import path from "path";
+import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 
 export class MainStack extends cdk.Stack {
 	constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -127,6 +131,91 @@ export class MainStack extends cdk.Stack {
 			billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
 		});
 
+		const ordersTable = new dynamodb.Table(this, "CloudRestaurantOrdersTable", {
+			tableName: `cloud-restaurant-orders-${env}`,
+			partitionKey: { name: "orderId", type: dynamodb.AttributeType.STRING },
+			billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+		});
+
+		const ordersQueue = new sqs.Queue(this, "CloudRestaurantOrdersQueue", {
+			queueName: `cloud-restaurant-orders-queue-${env}`,
+		});
+
+		const processOrderStep = new sfnTasks.DynamoPutItem(
+			this,
+			"Process Order Step",
+			{
+				table: ordersTable,
+				item: {
+					orderId: sfnTasks.DynamoAttributeValue.fromString(
+						sfn.JsonPath.stringAt("$.orderId")
+					),
+					menuId: sfnTasks.DynamoAttributeValue.fromString(
+						sfn.JsonPath.stringAt("$.menuId")
+					),
+					userId: sfnTasks.DynamoAttributeValue.fromString(
+						sfn.JsonPath.stringAt("$.userId")
+					),
+					quantity: sfnTasks.DynamoAttributeValue.fromString(
+						sfn.JsonPath.stringAt("$.quantity")
+					),
+					orderDate: sfnTasks.DynamoAttributeValue.fromString(
+						sfn.JsonPath.stringAt("$.orderDate")
+					),
+					status: sfnTasks.DynamoAttributeValue.fromString(
+						sfn.JsonPath.stringAt("$.status")
+					),
+				},
+			}
+		);
+
+		const chain = processOrderStep;
+
+		const processOrderStepFunction = new sfn.StateMachine(
+			this,
+			"ProcessOrderStepFunction",
+			{
+				definitionBody: sfn.DefinitionBody.fromChainable(chain),
+				timeout: cdk.Duration.minutes(5),
+			}
+		);
+
+		const triggerStepFunctionLambda = new lambda.Function(
+			this,
+			"TriggerStepFunctionLambda",
+			{
+				functionName: `cloud-restaurant-step-function-trigger-${env}`,
+				runtime: lambda.Runtime.NODEJS_20_X,
+				handler: "src/index.handler",
+				code: lambda.Code.fromAsset(
+					path.join(__dirname, "..", "..", "step-function-trigger-lambda"),
+					{
+						bundling: {
+							image: lambda.Runtime.NODEJS_20_X.bundlingImage,
+							command: [
+								"bash",
+								"-c",
+								"npm install && npm run build && cp -r dist/* /asset-output/ && cp -r node_modules /asset-output/",
+							],
+						},
+					}
+				),
+				environment: {
+					STATE_MACHINE_ARN: processOrderStepFunction.stateMachineArn,
+				},
+			}
+		);
+
+		processOrderStepFunction.grantStartExecution(triggerStepFunctionLambda);
+
+		triggerStepFunctionLambda.addEventSource(
+			new SqsEventSource(ordersQueue, {
+				batchSize: 1,
+			})
+		);
+
+		ordersQueue.grantConsumeMessages(triggerStepFunctionLambda);
+
 		const apiLambda = new lambda.Function(this, "CloudRestaurantApiLambda", {
 			functionName: `cloud-restaurant-api-${env}`,
 			runtime: lambda.Runtime.NODEJS_20_X,
@@ -142,11 +231,13 @@ export class MainStack extends cdk.Stack {
 				},
 			}),
 			environment: {
-				TABLE_NAME: menuTable.tableName,
+				MENU_TABLE: menuTable.tableName,
+				ORDERS_QUEUE_URL: ordersQueue.queueUrl,
 			},
 		});
 
 		menuTable.grantReadData(apiLambda);
+		ordersQueue.grantSendMessages(apiLambda);
 
 		const helloResource = api.root.addResource("hello");
 		helloResource.addMethod(
@@ -158,10 +249,18 @@ export class MainStack extends cdk.Stack {
 			}
 		);
 
-
 		const menuResource = api.root.addResource("menu");
-		menuResource.addMethod(
-			"GET",
+		menuResource.addMethod("GET", new apigateway.LambdaIntegration(apiLambda), {
+			authorizer,
+			authorizationType: apigateway.AuthorizationType.COGNITO,
+		});
+
+		const ordersResource = api.root
+			.addResource("orders")
+			.addResource("{menuId}");
+
+		ordersResource.addMethod(
+			"POST",
 			new apigateway.LambdaIntegration(apiLambda),
 			{
 				authorizer,
