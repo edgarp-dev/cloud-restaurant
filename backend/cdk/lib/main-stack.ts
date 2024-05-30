@@ -125,6 +125,10 @@ export class MainStack extends cdk.Stack {
 			}
 		);
 
+		const ordersQueue = new sqs.Queue(this, "CloudRestaurantOrdersQueue", {
+			queueName: `cloud-restaurant-orders-queue-${env}`,
+		});
+
 		const menuTable = new dynamodb.Table(this, "CloudRestaurantMenu", {
 			tableName: `cloud-restaurant-menu-db-${env}`,
 			partitionKey: { name: "Id", type: dynamodb.AttributeType.STRING },
@@ -137,9 +141,46 @@ export class MainStack extends cdk.Stack {
 			billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
 		});
 
-		const ordersQueue = new sqs.Queue(this, "CloudRestaurantOrdersQueue", {
-			queueName: `cloud-restaurant-orders-queue-${env}`,
-		});
+		const paymentsTable = new dynamodb.Table(
+			this,
+			"CloudRestaurantPaymentTable",
+			{
+				tableName: `cloud-restaurant-payments-db-${env}`,
+				partitionKey: {
+					name: "paymentId",
+					type: dynamodb.AttributeType.STRING,
+				},
+				billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+			}
+		);
+
+		const paymentProcessorLambda = new lambda.Function(
+			this,
+			"PaymentProcessorLambda",
+			{
+				functionName: `cloud-restaurant-payment-processor-${env}`,
+				runtime: lambda.Runtime.NODEJS_20_X,
+				handler: "index.handler",
+				code: lambda.Code.fromAsset(
+					path.join(__dirname, "..", "..", "payment-processor-lambda"),
+					{
+						bundling: {
+							image: lambda.Runtime.NODEJS_20_X.bundlingImage,
+							command: [
+								"bash",
+								"-c",
+								"npm install && npm run build && cp -r dist/* /asset-output/ && cp -r node_modules /asset-output/",
+							],
+						},
+					}
+				),
+				environment: {
+					PAYMENTS_TABLE: paymentsTable.tableName,
+				},
+			}
+		);
+
+		paymentsTable.grantReadWriteData(paymentProcessorLambda);
 
 		const processOrderStep = new sfnTasks.DynamoPutItem(
 			this,
@@ -166,10 +207,22 @@ export class MainStack extends cdk.Stack {
 						sfn.JsonPath.stringAt("$.status")
 					),
 				},
+				resultPath: "$.dynamodbResult",
 			}
 		);
 
-		const chain = processOrderStep;
+		const processPaymentStep = new sfnTasks.LambdaInvoke(
+			this,
+			"Process Payment Step",
+			{
+				lambdaFunction: paymentProcessorLambda,
+				payload: sfn.TaskInput.fromObject({
+					orderId: sfn.JsonPath.stringAt("$.orderId"),
+				}),
+			}
+		);
+
+		const chain = processOrderStep.next(processPaymentStep);
 
 		const processOrderStepFunction = new sfn.StateMachine(
 			this,
