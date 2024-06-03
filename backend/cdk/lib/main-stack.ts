@@ -200,6 +200,9 @@ export class MainStack extends cdk.Stack {
 					quantity: sfnTasks.DynamoAttributeValue.fromString(
 						sfn.JsonPath.stringAt("$.quantity")
 					),
+					amount: sfnTasks.DynamoAttributeValue.fromString(
+						sfn.JsonPath.stringAt("$.amount")
+					),
 					orderDate: sfnTasks.DynamoAttributeValue.fromString(
 						sfn.JsonPath.stringAt("$.orderDate")
 					),
@@ -218,6 +221,8 @@ export class MainStack extends cdk.Stack {
 				lambdaFunction: paymentProcessorLambda,
 				payload: sfn.TaskInput.fromObject({
 					orderId: sfn.JsonPath.stringAt("$.orderId"),
+					amount: sfn.JsonPath.stringAt("$.amount"),
+					userId: sfn.JsonPath.stringAt("$.userId"),
 				}),
 			}
 		);
