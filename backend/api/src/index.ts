@@ -9,8 +9,8 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const client = new DynamoDBClient({});
-const sqsClient = new SQSClient({});
+const client = new DynamoDBClient();
+const sqsClient = new SQSClient();
 
 const fastify = Fastify();
 

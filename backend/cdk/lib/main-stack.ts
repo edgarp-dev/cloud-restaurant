@@ -224,10 +224,35 @@ export class MainStack extends cdk.Stack {
 					amount: sfn.JsonPath.stringAt("$.amount"),
 					userId: sfn.JsonPath.stringAt("$.userId"),
 				}),
+				resultPath: "$.paymentResult",
 			}
 		);
 
-		const chain = processOrderStep.next(processPaymentStep);
+		const updateOrderStatusStep = new sfnTasks.DynamoUpdateItem(
+			this,
+			"Update Order Status Step",
+			{
+				table: ordersTable,
+				key: {
+					orderId: sfnTasks.DynamoAttributeValue.fromString(
+						sfn.JsonPath.stringAt("$.orderId")
+					),
+				},
+				updateExpression: "SET #orderStatus = :status",
+				expressionAttributeValues: {
+					":status":
+						sfnTasks.DynamoAttributeValue.fromString("ORDER_IN_PROCESS"),
+				},
+				expressionAttributeNames: {
+					"#orderStatus": "status",
+				},
+				resultPath: "$.updateResult",
+			}
+		);
+
+		const chain = processOrderStep
+			.next(processPaymentStep)
+			.next(updateOrderStatusStep);
 
 		const processOrderStepFunction = new sfn.StateMachine(
 			this,

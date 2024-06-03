@@ -13,7 +13,8 @@ export const handler: Handler = async (event): Promise<void> => {
 		orderId,
 		date: new Date().toISOString(),
 		amount,
-		status: 'PAYMENT_SUCCESSFUL'
+		status: 'PAYMENT_SUCCESSFUL',
+		userId
 	};
 
 	const params = {
@@ -25,6 +26,15 @@ export const handler: Handler = async (event): Promise<void> => {
 		const command = new PutItemCommand(params);
 		await client.send(command);
 		console.log("Payment processed successfully");
+
+		const updateParams = {
+			TableName: process.env.ORDERS_TABLE_NAME,
+			Key: marshall({ orderId }),
+			UpdateExpression: "set orderStatus = :status",
+			ExpressionAttributeValues: marshall({
+				":status": "ORDER_IN_PROCESS",
+			}),
+		};
 	} catch (error) {
 		console.error((error as Error).message);
 	}
