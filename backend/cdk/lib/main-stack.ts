@@ -250,9 +250,53 @@ export class MainStack extends cdk.Stack {
 			}
 		);
 
+		const orderPreparationProcessorLambda = new lambda.Function(
+			this,
+			"CloudRestaurantOrderPreparationLambda",
+			{
+				functionName: `cloud-restaurant-order-preparation-processor-${env}`,
+				runtime: lambda.Runtime.NODEJS_20_X,
+				handler: "index.handler",
+				code: lambda.Code.fromAsset(
+					path.join(
+						__dirname,
+						"..",
+						"..",
+						"order-preparation-processor-lambda"
+					),
+					{
+						bundling: {
+							image: lambda.Runtime.NODEJS_20_X.bundlingImage,
+							command: [
+								"bash",
+								"-c",
+								"npm install && npm run build && cp -r dist/* /asset-output/ && cp -r node_modules /asset-output/",
+							],
+						},
+					}
+				),
+				environment: {
+					ORDERS_TABLE_NAME: ordersTable.tableName,
+				},
+			}
+		);
+		ordersTable.grantReadWriteData(orderPreparationProcessorLambda);
+		const orderPreparationProcessorStep = new sfnTasks.LambdaInvoke(
+			this,
+			"Post Status Update Step",
+			{
+				lambdaFunction: orderPreparationProcessorLambda,
+				payload: sfn.TaskInput.fromObject({
+					orderId: sfn.JsonPath.stringAt("$.orderId"),
+				}),
+				resultPath: "$.orderPreparationResult",
+			}
+		);
+
 		const chain = processOrderStep
 			.next(processPaymentStep)
-			.next(updateOrderStatusStep);
+			.next(updateOrderStatusStep)
+			.next(orderPreparationProcessorStep);
 
 		const processOrderStepFunction = new sfn.StateMachine(
 			this,
