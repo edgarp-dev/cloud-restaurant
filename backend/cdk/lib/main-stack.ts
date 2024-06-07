@@ -250,20 +250,44 @@ export class MainStack extends cdk.Stack {
 			}
 		);
 
-		const orderPreparationProcessorLambda = new lambda.Function(
+		const orderPreparationTable = new dynamodb.Table(
 			this,
-			"CloudRestaurantOrderPreparationLambda",
+			"CloudRestaurantOrderPreparationTable",
 			{
-				functionName: `cloud-restaurant-order-preparation-processor-${env}`,
+				partitionKey: { name: "orderId", type: dynamodb.AttributeType.STRING },
+				billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+			}
+		);
+
+		const orderPreparationApi = new apigateway.RestApi(
+			this,
+			"CloudRestaurantOrderPreparationRestApi",
+			{
+				restApiName: `cloud-restaurant-rest-api-${env}`,
+				defaultCorsPreflightOptions: {
+					allowOrigins: apigateway.Cors.ALL_ORIGINS,
+					allowMethods: apigateway.Cors.ALL_METHODS,
+					allowHeaders: ["Authorization", "Content-Type"],
+				},
+				deployOptions: {
+					stageName: env,
+				},
+			}
+		);
+		const orderPreparationApiAuthorizer =
+			new apigateway.CognitoUserPoolsAuthorizer(this, "OrderPreparationApiCognitoAuthorizer", {
+				cognitoUserPools: [userPool],
+			});
+
+		const orderPreparationApiLambda = new lambda.Function(
+			this,
+			"CloudRestaurantOrderPreparationApiLambda",
+			{
+				functionName: `cloud-restaurant-order-preparation-api-${env}`,
 				runtime: lambda.Runtime.NODEJS_20_X,
 				handler: "index.handler",
 				code: lambda.Code.fromAsset(
-					path.join(
-						__dirname,
-						"..",
-						"..",
-						"order-preparation-processor-lambda"
-					),
+					path.join(__dirname, "..", "..", "order-preparation-api"),
 					{
 						bundling: {
 							image: lambda.Runtime.NODEJS_20_X.bundlingImage,
@@ -276,18 +300,33 @@ export class MainStack extends cdk.Stack {
 					}
 				),
 				environment: {
-					ORDERS_TABLE_NAME: ordersTable.tableName,
+					ORDERS_TABLE_NAME: orderPreparationTable.tableName,
 				},
 			}
 		);
-		ordersTable.grantReadWriteData(orderPreparationProcessorLambda);
+
+		orderPreparationTable.grantReadWriteData(orderPreparationApiLambda);
+
+		const orderPreparationHelloResource =
+			orderPreparationApi.root.addResource("hello");
+		orderPreparationHelloResource.addMethod(
+			"GET",
+			new apigateway.LambdaIntegration(orderPreparationApiLambda),
+			{
+				authorizer: orderPreparationApiAuthorizer,
+				authorizationType: apigateway.AuthorizationType.COGNITO,
+			}
+		);
+
 		const orderPreparationProcessorStep = new sfnTasks.LambdaInvoke(
 			this,
 			"Post Status Update Step",
 			{
-				lambdaFunction: orderPreparationProcessorLambda,
+				lambdaFunction: orderPreparationApiLambda,
+				integrationPattern: sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
 				payload: sfn.TaskInput.fromObject({
 					orderId: sfn.JsonPath.stringAt("$.orderId"),
+					taskToken: sfn.JsonPath.taskToken,
 				}),
 				resultPath: "$.orderPreparationResult",
 			}
