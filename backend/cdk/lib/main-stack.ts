@@ -254,7 +254,8 @@ export class MainStack extends cdk.Stack {
 			this,
 			"CloudRestaurantOrderPreparationTable",
 			{
-				partitionKey: { name: "orderId", type: dynamodb.AttributeType.STRING },
+				tableName: `cloud-restaurant-order-preparation-${env}`,
+				partitionKey: { name: "id", type: dynamodb.AttributeType.STRING },
 				billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
 			}
 		);
@@ -300,7 +301,7 @@ export class MainStack extends cdk.Stack {
 					}
 				),
 				environment: {
-					ORDERS_TABLE_NAME: orderPreparationTable.tableName,
+					ORDER_PREPARATION_TABLE: orderPreparationTable.tableName,
 				},
 			}
 		);
