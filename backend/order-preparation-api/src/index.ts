@@ -2,13 +2,19 @@ import { APIGatewayProxyEvent, Context, Handler } from "aws-lambda";
 import dotenv from "dotenv";
 import Fastify from "fastify";
 import awsLambdaFastify from "@fastify/aws-lambda";
+import { v4 as uuidv4 } from "uuid";
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const { PutCommand } = require("@aws-sdk/lib-dynamodb");
 
 dotenv.config();
 
 const fastify = Fastify();
 const proxy = awsLambdaFastify(fastify);
 
+const dbClient = new DynamoDBClient();
+
 type StepFunctionEvent = {
+	orderId: string;
 	taskToken: string;
 };
 
@@ -32,7 +38,27 @@ export const handler: Handler = async (
 };
 
 const handleStepFunctionEvent = async (event: LambdaEvent): Promise<void> => {
-	console.log(event);
+	const { orderId, taskToken } = event;
+
+	const orderPreparationTask = {
+		id: uuidv4(),
+		orderId,
+		taskToken,
+		startedAt: new Date().toISOString(),
+		finishedAt: "UNFINISHED",
+	};
+
+	try {
+		const putItemCommand = new PutCommand({
+			TableName: process.env.ORDER_PREPARATION_TABLE,
+			Item: orderPreparationTask,
+		});
+
+		const response = await dbClient.send(putItemCommand);
+		console.log("ORDER PREPARATION TASK INSERTED SUCCESSFULLY:", response);
+	} catch (error) {
+		console.error(error);
+	}
 };
 
 // Start server locally if not in Lambda environment
