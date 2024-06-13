@@ -240,8 +240,7 @@ export class MainStack extends cdk.Stack {
 				},
 				updateExpression: "SET #orderStatus = :status",
 				expressionAttributeValues: {
-					":status":
-						sfnTasks.DynamoAttributeValue.fromString("ORDER_IN_PROCESS"),
+					":status": sfnTasks.DynamoAttributeValue.fromString("ORDER_RECEIVED"),
 				},
 				expressionAttributeNames: {
 					"#orderStatus": "status",
@@ -264,7 +263,7 @@ export class MainStack extends cdk.Stack {
 			this,
 			"CloudRestaurantOrderPreparationRestApi",
 			{
-				restApiName: `cloud-restaurant-rest-api-${env}`,
+				restApiName: `cloud-restaurant-order-preparation-api-${env}`,
 				defaultCorsPreflightOptions: {
 					allowOrigins: apigateway.Cors.ALL_ORIGINS,
 					allowMethods: apigateway.Cors.ALL_METHODS,
@@ -275,10 +274,33 @@ export class MainStack extends cdk.Stack {
 				},
 			}
 		);
+
 		const orderPreparationApiAuthorizer =
-			new apigateway.CognitoUserPoolsAuthorizer(this, "OrderPreparationApiCognitoAuthorizer", {
-				cognitoUserPools: [userPool],
-			});
+			new apigateway.CognitoUserPoolsAuthorizer(
+				this,
+				"OrderPreparationApiCognitoAuthorizer",
+				{
+					cognitoUserPools: [userPool],
+				}
+			);
+
+		const orderPreparationApiLambdaRole = new iam.Role(this, "LambdaRole", {
+			assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+			managedPolicies: [
+				iam.ManagedPolicy.fromAwsManagedPolicyName(
+					"service-role/AWSLambdaBasicExecutionRole"
+				),
+			],
+		});
+		orderPreparationApiLambdaRole.addManagedPolicy(
+			iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonDynamoDBFullAccess")
+		);
+		orderPreparationApiLambdaRole.addManagedPolicy(
+			iam.ManagedPolicy.fromAwsManagedPolicyName("CloudWatchLogsFullAccess")
+		);
+		orderPreparationApiLambdaRole.addManagedPolicy(
+			iam.ManagedPolicy.fromAwsManagedPolicyName("AWSStepFunctionsFullAccess")
+		);
 
 		const orderPreparationApiLambda = new lambda.Function(
 			this,
@@ -302,16 +324,41 @@ export class MainStack extends cdk.Stack {
 				),
 				environment: {
 					ORDER_PREPARATION_TABLE: orderPreparationTable.tableName,
+					ORDERS_TABLE: ordersTable.tableName,
 				},
+				role: orderPreparationApiLambdaRole,
 			}
 		);
-
-		orderPreparationTable.grantReadWriteData(orderPreparationApiLambda);
 
 		const orderPreparationHelloResource =
 			orderPreparationApi.root.addResource("hello");
 		orderPreparationHelloResource.addMethod(
 			"GET",
+			new apigateway.LambdaIntegration(orderPreparationApiLambda),
+			{
+				authorizer: orderPreparationApiAuthorizer,
+				authorizationType: apigateway.AuthorizationType.COGNITO,
+			}
+		);
+
+		const orderTaskResource = orderPreparationApi.root
+			.addResource("order")
+			.addResource("{orderTaskId}");
+		const orderPreparationApiReceivedResource =
+			orderTaskResource.addResource("in-progress");
+		orderPreparationApiReceivedResource.addMethod(
+			"PUT",
+			new apigateway.LambdaIntegration(orderPreparationApiLambda),
+			{
+				authorizer: orderPreparationApiAuthorizer,
+				authorizationType: apigateway.AuthorizationType.COGNITO,
+			}
+		);
+
+		const orderPreparationApiPrepararionFinishedResource =
+			orderTaskResource.addResource("preparation-finished");
+		orderPreparationApiPrepararionFinishedResource.addMethod(
+			"PUT",
 			new apigateway.LambdaIntegration(orderPreparationApiLambda),
 			{
 				authorizer: orderPreparationApiAuthorizer,
@@ -343,7 +390,7 @@ export class MainStack extends cdk.Stack {
 			"ProcessOrderStepFunction",
 			{
 				definitionBody: sfn.DefinitionBody.fromChainable(chain),
-				timeout: cdk.Duration.minutes(5),
+				timeout: cdk.Duration.minutes(15),
 			}
 		);
 
@@ -422,9 +469,7 @@ export class MainStack extends cdk.Stack {
 			authorizationType: apigateway.AuthorizationType.COGNITO,
 		});
 
-		const ordersResource = api.root
-			.addResource("orders")
-			.addResource("{menuId}");
+		const ordersResource = api.root.addResource("orders");
 
 		ordersResource.addMethod(
 			"POST",
@@ -449,6 +494,9 @@ export class MainStack extends cdk.Stack {
 		});
 		new cdk.CfnOutput(this, "ApiUrl", {
 			value: api.url,
+		});
+		new cdk.CfnOutput(this, "OrderPreparationApi", {
+			value: orderPreparationApi.url,
 		});
 	}
 }

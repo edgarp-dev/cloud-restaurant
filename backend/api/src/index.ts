@@ -71,7 +71,8 @@ fastify.post("/orders", async (request, reply) => {
 
 		reply.status(201).send({ message: "Order created successfully" });
 	} catch (error) {
-		reply.status(500).send({ error: (error as Error).message });
+		console.error(error);
+		reply.status(500).send({ error: "Internal Server Error" });
 	}
 });
 
