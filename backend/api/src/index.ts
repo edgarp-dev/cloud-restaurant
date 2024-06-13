@@ -9,8 +9,8 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const client = new DynamoDBClient({});
-const sqsClient = new SQSClient({});
+const client = new DynamoDBClient();
+const sqsClient = new SQSClient();
 
 const fastify = Fastify();
 
@@ -42,10 +42,11 @@ fastify.get("/menu", async (request, reply) => {
 });
 
 fastify.post("/orders", async (request, reply) => {
-	const { userId, quantity, menuId } = request.body as {
+	const { userId, quantity, menuId, price } = request.body as {
 		userId: string;
 		menuId: string;
 		quantity: number;
+		price: number;
 	};
 
 	const orderDate = new Date().toISOString();
@@ -54,6 +55,7 @@ fastify.post("/orders", async (request, reply) => {
 		menuId,
 		userId,
 		quantity: quantity.toString(),
+		amount: (quantity * price).toString(),
 		orderDate,
 		status: "ORDER_CREATED",
 	};
@@ -69,7 +71,8 @@ fastify.post("/orders", async (request, reply) => {
 
 		reply.status(201).send({ message: "Order created successfully" });
 	} catch (error) {
-		reply.status(500).send({ error: (error as Error).message });
+		console.error(error);
+		reply.status(500).send({ error: "Internal Server Error" });
 	}
 });
 
