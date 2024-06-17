@@ -158,7 +158,7 @@ fastify.put(
 			});
 			await sfnClient.send(sendTaskSuccessCommand);
 
-			reply.status(200).send({ message: "ORder prearation finished" });
+			reply.status(200).send({ message: "Order preperation finished" });
 		} catch (error) {
 			console.error(error);
 			reply.status(500).send({ message: "Internal Server Error" });
