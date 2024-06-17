@@ -7,12 +7,12 @@ type StackOutput = {
 	userPool: cognito.UserPool;
 };
 
-export class UsersPoolStack extends cdk.Stack {
+export class UsersPoolStack extends cdk.NestedStack {
 	private readonly env: string;
 
 	private readonly userPool: cognito.UserPool;
 
-	constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+	constructor(scope: Construct, id: string, props?: cdk.NestedStackProps) {
 		super(scope, id, props);
 
 		this.env = this.node.tryGetContext("env");

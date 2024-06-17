@@ -10,13 +10,13 @@ import path from "path";
 type StackOutput = {
 	ordersRestApi: apigateway.RestApi;
 	ordersTable: dynamodb.Table;
-	ordersQueue: sqs.Queue
+	ordersQueue: sqs.Queue;
 };
 
-export class OrdersStack extends cdk.Stack {
+export class OrdersStack extends cdk.NestedStack {
 	private readonly env: string;
 
-	constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+	constructor(scope: Construct, id: string, props?: cdk.NestedStackProps) {
 		super(scope, id, props);
 
 		this.env = this.node.tryGetContext("env");

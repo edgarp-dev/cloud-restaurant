@@ -8,10 +8,10 @@ type StackOutput = {
 	paymentProcessorLambda: lambda.Function;
 };
 
-export default class PaymentStack extends cdk.Stack {
+export class PaymentStack extends cdk.NestedStack {
 	private readonly env: string;
 
-	constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+	constructor(scope: Construct, id: string, props?: cdk.NestedStackProps) {
 		super(scope, id, props);
 
 		this.env = this.node.tryGetContext("env");
