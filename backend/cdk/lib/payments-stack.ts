@@ -2,6 +2,7 @@ import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as iam from "aws-cdk-lib/aws-iam";
 import path from "path";
 
 type StackOutput = {
@@ -19,7 +20,8 @@ export class PaymentStack extends cdk.NestedStack {
 
 	public boostrap(): StackOutput {
 		const paymentsTable = this.createPaymentsTable();
-		const paymentProcessorLambda = this.createPaymentProcessor(paymentsTable);
+		const paymentProcessorLambda =
+			this.createPaymentProcessorLambda(paymentsTable);
 
 		return { paymentProcessorLambda };
 	}
@@ -35,9 +37,43 @@ export class PaymentStack extends cdk.NestedStack {
 		});
 	}
 
-	private createPaymentProcessor(
+	private createPaymentProcessorLambda(
 		paymentsTable: dynamodb.Table
 	): lambda.Function {
+		const role = new iam.Role(this, "PaymentProcessorLambdaExecutionRole", {
+			assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+			managedPolicies: [
+				iam.ManagedPolicy.fromAwsManagedPolicyName(
+					"service-role/AWSLambdaBasicExecutionRole"
+				),
+			],
+		});
+
+		role.addToPolicy(
+			new iam.PolicyStatement({
+				actions: [
+					"dynamodb:GetItem",
+					"dynamodb:Query",
+					"dynamodb:Scan",
+					"dynamodb:PutItem",
+					"dynamodb:UpdateItem",
+					"dynamodb:DeleteItem",
+				],
+				resources: [paymentsTable.tableArn],
+			})
+		);
+
+		role.addToPolicy(
+			new iam.PolicyStatement({
+				actions: [
+					"logs:CreateLogGroup",
+					"logs:CreateLogStream",
+					"logs:PutLogEvents",
+				],
+				resources: ["arn:aws:logs:*:*:*"],
+			})
+		);
+
 		const paymentProcessor = new lambda.Function(
 			this,
 			"PaymentProcessorLambda",

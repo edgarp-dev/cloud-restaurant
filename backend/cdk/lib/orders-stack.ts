@@ -90,7 +90,7 @@ export class OrdersStack extends cdk.NestedStack {
 		menuTable: dynamodb.Table,
 		ordersQueue: sqs.Queue
 	): lambda.Function {
-		const role = new iam.Role(this, "ApiLambdaExecutionRole", {
+		const role = new iam.Role(this, "OrdersRestApiLambdaExecutionRole", {
 			assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
 			managedPolicies: [
 				iam.ManagedPolicy.fromAwsManagedPolicyName(

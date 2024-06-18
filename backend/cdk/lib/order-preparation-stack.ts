@@ -64,7 +64,7 @@ export class OrderPrerationStack extends cdk.NestedStack {
 	private createRestApi(): apigateway.RestApi {
 		const orderPreparationApi = new apigateway.RestApi(
 			this,
-			"CloudRestaurantOrderPreparationRestApi",
+			"OrderPreparationRestApi",
 			{
 				restApiName: `cloud-restaurant-order-preparation-api-${this.env}`,
 				defaultCorsPreflightOptions: {
@@ -85,7 +85,7 @@ export class OrderPrerationStack extends cdk.NestedStack {
 		orderPreparationTable: dynamodb.Table,
 		ordersTable: dynamodb.Table
 	): lambda.Function {
-		const orderPreparationApiLambdaRole = new iam.Role(this, "LambdaRole", {
+		const role = new iam.Role(this, "OrderPreparationRestApiLambdaRole", {
 			assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
 			managedPolicies: [
 				iam.ManagedPolicy.fromAwsManagedPolicyName(
@@ -93,13 +93,33 @@ export class OrderPrerationStack extends cdk.NestedStack {
 				),
 			],
 		});
-		orderPreparationApiLambdaRole.addManagedPolicy(
-			iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonDynamoDBFullAccess")
+
+		role.addToPolicy(
+			new iam.PolicyStatement({
+				actions: [
+					"dynamodb:GetItem",
+					"dynamodb:Query",
+					"dynamodb:Scan",
+					"dynamodb:PutItem",
+					"dynamodb:UpdateItem",
+					"dynamodb:DeleteItem",
+				],
+				resources: [orderPreparationTable.tableArn, ordersTable.tableArn],
+			})
 		);
-		orderPreparationApiLambdaRole.addManagedPolicy(
-			iam.ManagedPolicy.fromAwsManagedPolicyName("CloudWatchLogsFullAccess")
+
+		role.addToPolicy(
+			new iam.PolicyStatement({
+				actions: [
+					"logs:CreateLogGroup",
+					"logs:CreateLogStream",
+					"logs:PutLogEvents",
+				],
+				resources: ["arn:aws:logs:*:*:*"],
+			})
 		);
-		orderPreparationApiLambdaRole.addManagedPolicy(
+
+		role.addManagedPolicy(
 			iam.ManagedPolicy.fromAwsManagedPolicyName("AWSStepFunctionsFullAccess")
 		);
 
@@ -127,7 +147,7 @@ export class OrderPrerationStack extends cdk.NestedStack {
 					ORDER_PREPARATION_TABLE: orderPreparationTable.tableName,
 					ORDERS_TABLE: ordersTable.tableName,
 				},
-				role: orderPreparationApiLambdaRole,
+				role,
 			}
 		);
 

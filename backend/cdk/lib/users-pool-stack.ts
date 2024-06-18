@@ -74,7 +74,7 @@ export class UsersPoolStack extends cdk.NestedStack {
 	): void {
 		const identityPool = new cognito.CfnIdentityPool(
 			this,
-			"CloudRestaurantIdentityPool",
+			"IdentityPool",
 			{
 				identityPoolName: `cloud-restaurant-identity-pool-${this.env}`,
 				allowUnauthenticatedIdentities: false,
