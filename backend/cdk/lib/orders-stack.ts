@@ -5,6 +5,7 @@ import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as sqs from "aws-cdk-lib/aws-sqs";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as iam from "aws-cdk-lib/aws-iam";
 import path from "path";
 
 type StackOutput = {
@@ -26,9 +27,12 @@ export class OrdersStack extends cdk.NestedStack {
 		const menuTable = this.createMenuTable();
 		const ordersQueue = this.createOrdersQueue();
 		const ordersTable = this.createOrdersTable();
-		const ordersRestApi = this.createRestApi(userPool, menuTable, ordersQueue);
+		const authorizer = this.createAuthorizer(userPool);
+		const restApi = this.createRestApi();
+		const restApiLambda = this.createRestApiLambda(menuTable, ordersQueue);
+		this.createRestApiResources(restApi, restApiLambda, authorizer);
 
-		return { ordersRestApi, ordersTable, ordersQueue };
+		return { ordersRestApi: restApi, ordersTable, ordersQueue };
 	}
 
 	private createMenuTable(): dynamodb.Table {
@@ -56,20 +60,20 @@ export class OrdersStack extends cdk.NestedStack {
 		});
 	}
 
-	private createRestApi(
-		userPool: cognito.UserPool,
-		menuTable: dynamodb.Table,
-		ordersQueue: sqs.Queue
-	): apigateway.RestApi {
-		const authorizer = new apigateway.CognitoUserPoolsAuthorizer(
+	private createAuthorizer(
+		userPool: cognito.UserPool
+	): apigateway.CognitoUserPoolsAuthorizer {
+		return new apigateway.CognitoUserPoolsAuthorizer(
 			this,
 			"OrdersRestApiCognitoAuthorizer",
 			{
 				cognitoUserPools: [userPool],
 			}
 		);
+	}
 
-		const restApi = new apigateway.RestApi(this, "OrdersRestApi", {
+	private createRestApi(): apigateway.RestApi {
+		return new apigateway.RestApi(this, "OrdersRestApi", {
 			restApiName: `cloud-restaurant-orders-api-${this.env}`,
 			defaultCorsPreflightOptions: {
 				allowOrigins: apigateway.Cors.ALL_ORIGINS,
@@ -80,8 +84,47 @@ export class OrdersStack extends cdk.NestedStack {
 				stageName: this.env,
 			},
 		});
+	}
 
-		const apiLambda = new lambda.Function(this, "OrdersRestApiLambda", {
+	private createRestApiLambda(
+		menuTable: dynamodb.Table,
+		ordersQueue: sqs.Queue
+	): lambda.Function {
+		const role = new iam.Role(this, "ApiLambdaExecutionRole", {
+			assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+			managedPolicies: [
+				iam.ManagedPolicy.fromAwsManagedPolicyName(
+					"service-role/AWSLambdaBasicExecutionRole"
+				),
+			],
+		});
+
+		role.addToPolicy(
+			new iam.PolicyStatement({
+				actions: ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan"],
+				resources: [menuTable.tableArn],
+			})
+		);
+
+		role.addToPolicy(
+			new iam.PolicyStatement({
+				actions: ["sqs:SendMessage"],
+				resources: [ordersQueue.queueArn],
+			})
+		);
+
+		role.addToPolicy(
+			new iam.PolicyStatement({
+				actions: [
+					"logs:CreateLogGroup",
+					"logs:CreateLogStream",
+					"logs:PutLogEvents",
+				],
+				resources: ["arn:aws:logs:*:*:*"],
+			})
+		);
+
+		return new lambda.Function(this, "OrdersRestApiLambda", {
 			functionName: `cloud-restaurant-orders-api-${this.env}`,
 			runtime: lambda.Runtime.NODEJS_20_X,
 			handler: "src/index.handler",
@@ -99,20 +142,29 @@ export class OrdersStack extends cdk.NestedStack {
 				MENU_TABLE: menuTable.tableName,
 				ORDERS_QUEUE_URL: ordersQueue.queueUrl,
 			},
+			role,
 		});
-		menuTable.grantReadData(apiLambda);
-		ordersQueue.grantSendMessages(apiLambda);
+	}
 
+	private createRestApiResources(
+		restApi: apigateway.RestApi,
+		restApiLambda: lambda.Function,
+		authorizer: apigateway.CognitoUserPoolsAuthorizer
+	): void {
 		const menuResource = restApi.root.addResource("menu");
-		menuResource.addMethod("GET", new apigateway.LambdaIntegration(apiLambda), {
-			authorizer,
-			authorizationType: apigateway.AuthorizationType.COGNITO,
-		});
+		menuResource.addMethod(
+			"GET",
+			new apigateway.LambdaIntegration(restApiLambda),
+			{
+				authorizer,
+				authorizationType: apigateway.AuthorizationType.COGNITO,
+			}
+		);
 
 		const ordersResource = restApi.root.addResource("orders");
 		ordersResource.addMethod(
 			"POST",
-			new apigateway.LambdaIntegration(apiLambda),
+			new apigateway.LambdaIntegration(restApiLambda),
 			{
 				authorizer,
 				authorizationType: apigateway.AuthorizationType.COGNITO,
@@ -122,13 +174,11 @@ export class OrdersStack extends cdk.NestedStack {
 		const helloResource = restApi.root.addResource("hello");
 		helloResource.addMethod(
 			"GET",
-			new apigateway.LambdaIntegration(apiLambda),
+			new apigateway.LambdaIntegration(restApiLambda),
 			{
 				authorizer,
 				authorizationType: apigateway.AuthorizationType.COGNITO,
 			}
 		);
-
-		return restApi;
 	}
 }
