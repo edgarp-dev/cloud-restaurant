@@ -21,7 +21,8 @@ export class StepFunctionStack extends cdk.NestedStack {
 		ordersTable: dynamodb.Table,
 		paymentProcessorLambda: lambda.Function,
 		orderPreparationLambda: lambda.Function,
-		ordersQueue: sqs.Queue
+		ordersQueue: sqs.Queue,
+		deliveryLambda: lambda.Function
 	): void {
 		const putItemIntoOrdersTableStep =
 			this.createPutItemOrderToOrderTableStep(ordersTable);
@@ -36,10 +37,14 @@ export class StepFunctionStack extends cdk.NestedStack {
 			orderPreparationLambda
 		);
 
+		const waitForOrderDeliveryStep =
+			this.crateWaitForOrderDeliveryStep(deliveryLambda);
+
 		const stepFunctionStepsChain = putItemIntoOrdersTableStep
 			.next(processPaymentStep)
 			.next(updateOrderStatusStep)
-			.next(waitForOrderPreparationStep);
+			.next(waitForOrderPreparationStep)
+			.next(waitForOrderDeliveryStep);
 
 		const processOrderStepFunction = new sfn.StateMachine(
 			this,
@@ -133,6 +138,20 @@ export class StepFunctionStack extends cdk.NestedStack {
 				taskToken: sfn.JsonPath.taskToken,
 			}),
 			resultPath: "$.orderPreparationResult",
+		});
+	}
+
+	private crateWaitForOrderDeliveryStep(
+		deliveryLambda: lambda.Function
+	): cdk.aws_stepfunctions_tasks.LambdaInvoke {
+		return new sfnTasks.LambdaInvoke(this, "Wait For Order Delivery", {
+			lambdaFunction: deliveryLambda,
+			integrationPattern: sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+			payload: sfn.TaskInput.fromObject({
+				orderId: sfn.JsonPath.stringAt("$.orderId"),
+				taskToken: sfn.JsonPath.taskToken,
+			}),
+			resultPath: "$.deliveryResult",
 		});
 	}
 

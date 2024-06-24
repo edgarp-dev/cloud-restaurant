@@ -32,6 +32,11 @@ export class DeliveryStack extends cdk.NestedStack {
 			deliveryTable,
 			ordersTable
 		);
+		this.createRestApiResources(
+			deliveryRestApi,
+			apiAuthorizer,
+			deliveryRestApiLambda
+		);
 
 		return { deliveryRestApi, deliveryLambda: deliveryRestApiLambda };
 	}
@@ -127,5 +132,21 @@ export class DeliveryStack extends cdk.NestedStack {
 		);
 
 		return deliveryRestApiLambda;
+	}
+
+	private createRestApiResources(
+		deliveryApi: apigateway.RestApi,
+		deliveryApiAuthorizer: apigateway.CognitoUserPoolsAuthorizer,
+		deliveryApiLambda: lambda.Function
+	): void {
+		const helloResource = deliveryApi.root.addResource("hello");
+		helloResource.addMethod(
+			"GET",
+			new apigateway.LambdaIntegration(deliveryApiLambda),
+			{
+				authorizer: deliveryApiAuthorizer,
+				authorizationType: apigateway.AuthorizationType.COGNITO,
+			}
+		);
 	}
 }
