@@ -1,5 +1,5 @@
 {
-	"name": "order-preparation-processor-lambda",
+	"name": "order-preparation-lambda",
 	"version": "1.0.0",
 	"main": "index.js",
 	"scripts": {
