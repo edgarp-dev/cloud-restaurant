@@ -91,6 +91,20 @@ export class DeliveryStack extends cdk.NestedStack {
 		role.addToPolicy(
 			new iam.PolicyStatement({
 				actions: [
+					"dynamodb:GetItem",
+					"dynamodb:Query",
+					"dynamodb:Scan",
+					"dynamodb:PutItem",
+					"dynamodb:UpdateItem",
+					"dynamodb:DeleteItem",
+				],
+				resources: [deliveryTable.tableArn, ordersTable.tableArn],
+			})
+		);
+
+		role.addToPolicy(
+			new iam.PolicyStatement({
+				actions: [
 					"logs:CreateLogGroup",
 					"logs:CreateLogStream",
 					"logs:PutLogEvents",

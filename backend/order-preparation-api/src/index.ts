@@ -86,7 +86,7 @@ fastify.put("/order/:orderTaskId/in-progress", async (request, reply) => {
 
 		await dbClient.send(orderStatusUpdateItemCommand);
 
-		reply.status(200).send({ message: "Order in progress" });
+		reply.status(200).send({ orderTaskId });
 	} catch (error) {
 		console.error(error);
 		reply.status(500).send({ message: "Internal Server Error" });
@@ -158,7 +158,7 @@ fastify.put(
 			});
 			await sfnClient.send(sendTaskSuccessCommand);
 
-			reply.status(200).send({ message: "Order preperation finished" });
+			reply.status(200).send({ orderTaskId });
 		} catch (error) {
 			console.error(error);
 			reply.status(500).send({ message: "Internal Server Error" });
