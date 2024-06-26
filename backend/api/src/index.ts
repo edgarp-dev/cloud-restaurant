@@ -50,8 +50,9 @@ fastify.post("/orders", async (request, reply) => {
 	};
 
 	const orderDate = new Date().toISOString();
+	const orderId = uuidv4();
 	const order = {
-		orderId: uuidv4(),
+		orderId,
 		menuId,
 		userId,
 		quantity: quantity.toString(),
@@ -69,7 +70,7 @@ fastify.post("/orders", async (request, reply) => {
 		const sqsCommand = new SendMessageCommand(sqsParams);
 		await sqsClient.send(sqsCommand);
 
-		reply.status(201).send({ message: "Order created successfully" });
+		reply.status(201).send({ orderId });
 	} catch (error) {
 		console.error(error);
 		reply.status(500).send({ error: "Internal Server Error" });

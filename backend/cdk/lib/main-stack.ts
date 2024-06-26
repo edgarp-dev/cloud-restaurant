@@ -4,7 +4,8 @@ import { UsersPoolStack } from "./users-pool-stack";
 import { OrdersStack } from "./orders-stack";
 import { PaymentStack } from "./payments-stack";
 import { OrderPrerationStack } from "./order-preparation-stack";
-import { StepFunctionStack } from "./step-function-stacl";
+import { StepFunctionStack } from "./step-function-stack";
+import { DeliveryStack } from "./delivery-stack";
 
 export class MainStack extends cdk.Stack {
 	constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -34,6 +35,16 @@ export class MainStack extends cdk.Stack {
 		const { orderPreparationLambda, orderPreparationRestApi } =
 			orderPeratationStack.boostrap(userPool, ordersTable);
 
+		const deliveryStack = new DeliveryStack(
+			this,
+			`delivery-stack-${env}`,
+			props
+		);
+		const { deliveryRestApi, deliveryLambda } = deliveryStack.boostrap(
+			userPool,
+			ordersTable
+		);
+
 		const stepFunctionStack = new StepFunctionStack(
 			this,
 			`step-function-stack-${env}`,
@@ -43,7 +54,8 @@ export class MainStack extends cdk.Stack {
 			ordersTable,
 			paymentProcessorLambda,
 			orderPreparationLambda,
-			ordersQueue
+			ordersQueue,
+			deliveryLambda
 		);
 
 		// OUTPUTS
@@ -52,6 +64,9 @@ export class MainStack extends cdk.Stack {
 		});
 		new cdk.CfnOutput(this, "OrderPreparationApi", {
 			value: orderPreparationRestApi.url,
+		});
+		new cdk.CfnOutput(this, "DeliveryApi", {
+			value: deliveryRestApi.url,
 		});
 	}
 
