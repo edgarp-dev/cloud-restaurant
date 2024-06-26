@@ -1,0 +1,17 @@
+{
+  "name": "genesis_scripts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "menu": "ts-node menu_db_genesis_script.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.602.0",
+    "@aws-sdk/util-dynamodb": "^3.602.0",
+    "ts-node": "^10.9.2"
+  }
+}
