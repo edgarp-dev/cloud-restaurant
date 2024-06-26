@@ -1,5 +1,4 @@
 import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
-import { marshall } from "@aws-sdk/util-dynamodb";
 
 const awsRegion = "us-east-1";
 const env = "dev";
