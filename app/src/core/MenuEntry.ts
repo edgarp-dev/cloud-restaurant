@@ -4,5 +4,5 @@ export default class Menu {
 
 	public name: string = "";
 
-	public price: string = "";
+	public price: number = 0;
 }
