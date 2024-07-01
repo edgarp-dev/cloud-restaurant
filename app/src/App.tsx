@@ -1,8 +1,10 @@
 import React from "react";
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import { Authenticator } from "@aws-amplify/ui-react";
 import type { MenuProps } from "antd";
 import { Navbar, NavbarMenuItem } from "./components/ui/navbar";
 import Menu from "./components/menu";
+import OrdersList from './components/orders';
 
 export default function App() {
 	const menuItems: MenuProps["items"] = [
@@ -16,10 +18,21 @@ export default function App() {
 		},
 	];
 
+	const links = [
+		{ title: "menu", path: "/menu" },
+		{ title: "orders", path: "/orders" },
+	];
+
 	return (
-		<div style={{ width: "100vw", height: "100vh" }}>
-			<Navbar menuItems={menuItems} />
-			<Menu />
-		</div>
+		<Router>
+			<div style={{ width: "100vw", height: "100vh" }}>
+				<Navbar menuItems={menuItems} links={links}/>
+				<Routes>
+					<Route path="/" element={<Menu />} />
+					<Route path="/menu" element={<Menu />} />
+					<Route path="/orders" element={<OrdersList />} />
+				</Routes>
+			</div>
+		</Router>
 	);
 }

@@ -61,7 +61,7 @@ const OrderModal = ({ orderProps, onClose }: Props) => {
 	};
 
 	const decreaseCount = () => {
-		setAmount(amount > 0 ? amount - 1 : 0);
+		setAmount(amount > 1 ? amount - 1 : 1);
 	};
 
 	const renderSuccessMessage = () => {
@@ -96,7 +96,7 @@ const OrderModal = ({ orderProps, onClose }: Props) => {
 						marginTop: 20,
 					}}
 				>
-					<Button onClick={decreaseCount}>-</Button>
+					<Button disabled={amount === 1} onClick={decreaseCount}>-</Button>
 					<span style={{ margin: "0 10px", fontSize: "16px" }}>{amount}</span>
 					<Button onClick={increaseCount}>+</Button>
 				</div>
