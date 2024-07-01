@@ -29,7 +29,11 @@ export class OrdersStack extends cdk.NestedStack {
 		const ordersTable = this.createOrdersTable();
 		const authorizer = this.createAuthorizer(userPool);
 		const restApi = this.createRestApi();
-		const restApiLambda = this.createRestApiLambda(menuTable, ordersQueue);
+		const restApiLambda = this.createRestApiLambda(
+			menuTable,
+			ordersTable,
+			ordersQueue
+		);
 		this.createRestApiResources(restApi, restApiLambda, authorizer);
 
 		return { ordersRestApi: restApi, ordersTable, ordersQueue };
@@ -50,7 +54,7 @@ export class OrdersStack extends cdk.NestedStack {
 	}
 
 	private createOrdersTable(): dynamodb.Table {
-		return new dynamodb.Table(this, "OrdersTable", {
+		const ordersTable = new dynamodb.Table(this, "OrdersTable", {
 			tableName: `cloud-restaurant-orders-${this.env}`,
 			partitionKey: {
 				name: "orderId",
@@ -58,6 +62,14 @@ export class OrdersStack extends cdk.NestedStack {
 			},
 			billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
 		});
+
+		ordersTable.addGlobalSecondaryIndex({
+			indexName: "UserIdIndex",
+			partitionKey: { name: "userId", type: dynamodb.AttributeType.STRING },
+			projectionType: dynamodb.ProjectionType.ALL,
+		});
+
+		return ordersTable;
 	}
 
 	private createAuthorizer(
@@ -88,6 +100,7 @@ export class OrdersStack extends cdk.NestedStack {
 
 	private createRestApiLambda(
 		menuTable: dynamodb.Table,
+		ordersTable: dynamodb.Table,
 		ordersQueue: sqs.Queue
 	): lambda.Function {
 		const role = new iam.Role(this, "OrdersRestApiLambdaExecutionRole", {
@@ -103,6 +116,16 @@ export class OrdersStack extends cdk.NestedStack {
 			new iam.PolicyStatement({
 				actions: ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan"],
 				resources: [menuTable.tableArn],
+			})
+		);
+
+		role.addToPolicy(
+			new iam.PolicyStatement({
+				actions: ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan"],
+				resources: [
+					ordersTable.tableArn,
+					`${ordersTable.tableArn}/index/UserIdIndex`,
+				],
 			})
 		);
 
@@ -141,6 +164,7 @@ export class OrdersStack extends cdk.NestedStack {
 			environment: {
 				MENU_TABLE: menuTable.tableName,
 				ORDERS_QUEUE_URL: ordersQueue.queueUrl,
+				ORDERS_TABLE: ordersTable.tableName,
 			},
 			role,
 		});
@@ -164,6 +188,16 @@ export class OrdersStack extends cdk.NestedStack {
 		const ordersResource = restApi.root.addResource("orders");
 		ordersResource.addMethod(
 			"POST",
+			new apigateway.LambdaIntegration(restApiLambda),
+			{
+				authorizer,
+				authorizationType: apigateway.AuthorizationType.COGNITO,
+			}
+		);
+
+		const userOrders = ordersResource.addResource("{userId}");
+		userOrders.addMethod(
+			"GET",
 			new apigateway.LambdaIntegration(restApiLambda),
 			{
 				authorizer,
