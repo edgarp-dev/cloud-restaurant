@@ -4,7 +4,7 @@ import { Authenticator } from "@aws-amplify/ui-react";
 import type { MenuProps } from "antd";
 import { Navbar, NavbarMenuItem } from "./components/ui/navbar";
 import Menu from "./components/menu";
-import OrdersList from './components/orders';
+import Orders from "./components/orders";
 
 export default function App() {
 	const menuItems: MenuProps["items"] = [
@@ -26,11 +26,11 @@ export default function App() {
 	return (
 		<Router>
 			<div style={{ width: "100vw", height: "100vh" }}>
-				<Navbar menuItems={menuItems} links={links}/>
+				<Navbar menuItems={menuItems} links={links} />
 				<Routes>
 					<Route path="/" element={<Menu />} />
 					<Route path="/menu" element={<Menu />} />
-					<Route path="/orders" element={<OrdersList />} />
+					<Route path="/orders" element={<Orders />} />
 				</Routes>
 			</div>
 		</Router>

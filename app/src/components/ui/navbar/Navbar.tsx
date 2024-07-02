@@ -33,7 +33,7 @@ const Navbar = ({ menuItems, links }: Props) => {
 					{links.map((link, idx) => (
 						<Link
 							to={link.path}
-							style={{ marginLeft: idx !== 0 ? "5px" : "20px", color: "#fff" }}
+							style={{ marginLeft: idx !== 0 ? "10px" : "20px", color: "#fff" }}
 						>
 							{link.title}
 						</Link>

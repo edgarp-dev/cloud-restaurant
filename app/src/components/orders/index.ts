@@ -1,3 +1,3 @@
-import OrdersList from "./OrdersList";
+import Orders from "./Orders";
 
-export default OrdersList;
+export default Orders;

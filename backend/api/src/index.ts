@@ -104,7 +104,13 @@ fastify.get("/orders/:userId", async (request, reply) => {
 
 		if (data.Items) {
 			for (const item of data.Items) {
-				orders.push(unmarshall(item));
+				const { orderId, status, orderDate } = unmarshall(item);
+				const order = {
+					id: orderId,
+					status,
+					date: orderDate	
+				}
+				orders.push(order);
 			}
 		}
 
