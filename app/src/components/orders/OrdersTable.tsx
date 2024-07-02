@@ -40,7 +40,8 @@ const OrdersTable = ({ orders }: Props) => {
 
 	return (
 		<Table
-			dataSource={orders.map((order) => ({ ...order, key: order.id }))}
+			dataSource={orders}
+			rowKey="id"
 			columns={columns}
 			pagination={{ pageSize }}
 		/>

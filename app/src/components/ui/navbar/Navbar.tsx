@@ -32,6 +32,7 @@ const Navbar = ({ menuItems, links }: Props) => {
 					<span>cloud restaurant</span>
 					{links.map((link, idx) => (
 						<Link
+							key={link.title}
 							to={link.path}
 							style={{ marginLeft: idx !== 0 ? "10px" : "20px", color: "#fff" }}
 						>
