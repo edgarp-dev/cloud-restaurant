@@ -5,6 +5,7 @@ import type { MenuProps } from "antd";
 import { Navbar, NavbarMenuItem } from "./components/ui/navbar";
 import Menu from "./components/menu";
 import Orders from "./components/orders";
+import OrderDetails from './components/order-details'
 
 export default function App() {
 	const menuItems: MenuProps["items"] = [
@@ -31,6 +32,7 @@ export default function App() {
 					<Route path="/" element={<Menu />} />
 					<Route path="/menu" element={<Menu />} />
 					<Route path="/orders" element={<Orders />} />
+					<Route path="/orders/:orderId" element={<OrderDetails />} />
 				</Routes>
 			</div>
 		</Router>

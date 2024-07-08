@@ -4,6 +4,7 @@ import Order from "../../core/Order";
 
 type Props = {
 	orders: Order[];
+	onRowClick: (order: Order) => void;
 };
 
 const columns = [
@@ -19,13 +20,13 @@ const columns = [
 	},
 ];
 
-const OrdersTable = ({ orders }: Props) => {
+const OrdersTable = ({ orders, onRowClick }: Props) => {
 	const [pageSize, setPageSize] = useState<number>(10);
 
 	useEffect(() => {
 		const updatePageSize = () => {
-			const availableHeight = window.innerHeight - 200; // Adjust 200 to match your header/footer height
-			const rowHeight = 54; // Approximate height of a table row
+			const availableHeight = window.innerHeight - 200;
+			const rowHeight = 54;
 			const newPageSize = Math.floor(availableHeight / rowHeight);
 			setPageSize(newPageSize);
 		};
@@ -44,6 +45,12 @@ const OrdersTable = ({ orders }: Props) => {
 			rowKey="id"
 			columns={columns}
 			pagination={{ pageSize }}
+			style={{
+				cursor: "pointer",
+			}}
+			onRow={(record) => ({
+				onClick: () => onRowClick(record),
+			})}
 		/>
 	);
 };
