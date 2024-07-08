@@ -108,8 +108,8 @@ fastify.get("/orders/:userId", async (request, reply) => {
 				const order = {
 					id: orderId,
 					status,
-					date: orderDate	
-				}
+					date: orderDate,
+				};
 				orders.push(order);
 			}
 		}
@@ -119,6 +119,82 @@ fastify.get("/orders/:userId", async (request, reply) => {
 		console.error(error);
 
 		reply.status(500).send({ message: "Internal Server Error" });
+	}
+});
+
+fastify.get("/orders/:userId/:orderId", async (request, reply) => {
+	const { orderId } = request.params as {
+		userId: string;
+		orderId: string;
+	};
+
+	try {
+		const orderQueryParams = {
+			TableName: process.env.ORDERS_TABLE,
+			KeyConditionExpression: "orderId = :orderId",
+			ExpressionAttributeValues: {
+				":orderId": {
+					S: orderId,
+				},
+			},
+		};
+
+		const orderDbRespose = await client.send(
+			new QueryCommand(orderQueryParams)
+		);
+
+		if (
+			!orderDbRespose ||
+			!orderDbRespose.Items ||
+			orderDbRespose.Items.length === 0
+		) {
+			return reply.status(404).send({ message: "Order not found" });
+		}
+
+		const order = unmarshall(orderDbRespose.Items[0]);
+		const { menuId } = order;
+
+		const menuQueryParams = {
+			TableName: process.env.MENU_TABLE,
+			KeyConditionExpression: "Id = :menuId",
+			ExpressionAttributeValues: {
+				":menuId": {
+					S: menuId,
+				},
+			},
+		};
+		const menuDbResponse = await client.send(new QueryCommand(menuQueryParams));
+
+		if (
+			!menuDbResponse ||
+			!menuDbResponse.Items ||
+			menuDbResponse.Items.length === 0
+		) {
+			return reply.status(404).send({ message: "Order not found" });
+		}
+
+		const menu = unmarshall(menuDbResponse.Items[0]);
+
+		const { orderDate, quantity, status, amount } = order;
+		const { ImageSrc, Name, Price } = menu;
+
+		const orderDetails = {
+			orderDate,
+			quantity,
+			status,
+			amount,
+			menuDetails: {
+				imageSrc: ImageSrc,
+				name: Name,
+				price: Price,
+			},
+		};
+
+		return reply.status(200).send(orderDetails);
+	} catch (error) {
+		console.error(error);
+
+		return reply.status(500).send({ message: "Internal Server Error" });
 	}
 });
 

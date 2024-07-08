@@ -205,6 +205,16 @@ export class OrdersStack extends cdk.NestedStack {
 			}
 		);
 
+		const orderDetails = userOrders.addResource("{orderId}");
+		orderDetails.addMethod(
+			"GET",
+			new apigateway.LambdaIntegration(restApiLambda),
+			{
+				authorizer,
+				authorizationType: apigateway.AuthorizationType.COGNITO,
+			}
+		);
+
 		const helloResource = restApi.root.addResource("hello");
 		helloResource.addMethod(
 			"GET",
