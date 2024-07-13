@@ -15,3 +15,15 @@ type OrderApiItem = {
 }
 
 export type OrderApiResponse = OrderApiItem[];
+
+export type OrderDetailsApiResponse = {
+	orderDate: string;
+	quantity: string;
+	status: string;
+	amount: string;
+	menuDetails: {
+		imageSrc: string;
+		name: string;
+		price: string;
+	};
+};

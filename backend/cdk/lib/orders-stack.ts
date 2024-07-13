@@ -151,6 +151,7 @@ export class OrdersStack extends cdk.NestedStack {
 			functionName: `cloud-restaurant-orders-api-${this.env}`,
 			runtime: lambda.Runtime.NODEJS_20_X,
 			handler: "src/index.handler",
+			timeout: cdk.Duration.seconds(30),
 			code: lambda.Code.fromAsset(path.join(__dirname, "..", "..", "api"), {
 				bundling: {
 					image: lambda.Runtime.NODEJS_20_X.bundlingImage,

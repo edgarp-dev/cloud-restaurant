@@ -1,9 +1,18 @@
 import React from "react";
 import { useParams } from "react-router-dom";
 import { Card, Row, Col, Image } from "antd";
+import { useOrderDetails } from "../../api";
 
 const OrderDetails = () => {
 	const { orderId } = useParams();
+	const { status: requestStatus, data: orderDetails } = useOrderDetails(
+		orderId as string
+	);
+
+	if (!orderDetails) return <>Order not found</>;
+
+	const { menuImage, menuName, menuPrice, date, status, quantity, amount } =
+		orderDetails;
 
 	return (
 		<Card
@@ -22,12 +31,12 @@ const OrderDetails = () => {
 						}}
 					>
 						<Image
-							src="https://via.placeholder.com/150"
+							src={menuImage}
 							alt="Order Image"
 							style={{
-								width: "100px",
+								width: "200px",
 								height: "200px",
-								borderRadius: "50%",
+								borderRadius: "5%",
 								objectFit: "cover",
 							}}
 							preview={false}
@@ -43,9 +52,12 @@ const OrderDetails = () => {
 							height: "100%",
 						}}
 					>
-						<p>Order: Pepperoni Pizza</p>
-						<p>Date: Sunday June 30 10:34 AM</p>
-						<p>Status: Order received</p>
+						<p>Order: {menuName}</p>
+						<p>Price: {menuPrice}</p>
+						<p>Date: {date}</p>
+						<p>Status: {status}</p>
+						<p>Quantity: {quantity}</p>
+						<p>Total: {amount}</p>
 					</div>
 				</Col>
 			</Row>
