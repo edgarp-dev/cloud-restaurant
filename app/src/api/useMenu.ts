@@ -2,12 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import ApliClient from "./ApiClient";
 import { MenuApiResponse } from "./types";
 import Menu from "../core/MenuEntry";
+import { ordersApiUrl } from "./Urls";
 
 const useMenu = () => {
 	return useQuery({
 		queryKey: ["menu-items"],
 		queryFn: async (): Promise<Menu[]> => {
-			const apiClient = await ApliClient.getInstance();
+			const apiClient = await ApliClient.getInstance(ordersApiUrl);
 
 			const menuApiResponse = await apiClient.get<MenuApiResponse>("/menu");
 
@@ -21,7 +22,7 @@ const useMenu = () => {
 				menuItem.id = Id;
 				menuItem.imageSrc = ImageSrc;
 				menuItem.name = Name;
-				menuItem.price = `$${Price}`;
+				menuItem.price = parseInt(Price);
 
 				menuItems.push(menuItem);
 			}
