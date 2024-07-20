@@ -1,7 +1,7 @@
 import React from "react";
 import { useParams } from "react-router-dom";
 import { Card, Row, Col, Image } from "antd";
-import { useOrderDetails } from "../../api";
+import { useOrderDetails } from "../../../api";
 
 const OrderDetails = () => {
 	const { orderId } = useParams();

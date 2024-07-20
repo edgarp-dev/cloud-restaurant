@@ -9,7 +9,7 @@ import { Authenticator } from "@aws-amplify/ui-react";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import awsExports from "./aws-exports";
-import SignUp from "./components/sign-up";
+import SignUp from "./ui/sign-up";
 
 Amplify.configure(awsExports);
 const queryClient = new QueryClient();
