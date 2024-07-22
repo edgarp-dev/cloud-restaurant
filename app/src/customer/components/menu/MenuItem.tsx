@@ -1,5 +1,5 @@
 import React from "react";
-import Menu from "../../core/MenuEntry";
+import Menu from "../../../core/MenuEntry";
 import { Card, Image } from "antd";
 
 const { Meta } = Card;

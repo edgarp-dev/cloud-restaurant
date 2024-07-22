@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Table } from "antd";
-import Order from "../../core/Order";
+import Order from "../../../core/Order";
 
 type Props = {
 	orders: Order[];

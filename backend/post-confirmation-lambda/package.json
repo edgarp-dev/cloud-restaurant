@@ -1,0 +1,16 @@
+{
+	"name": "post-comfirmation-lambda",
+	"version": "1.0.0",
+	"description": "Post-confirmation Lambda function for adding users to Cognito groups",
+	"main": "dist/index.js",
+	"scripts": {
+		"build": "tsc"
+	},
+	"dependencies": {
+		"aws-sdk": "^2.1659.0"
+	},
+	"devDependencies": {
+		"@types/aws-lambda": "^8.10.141",
+		"typescript": "^5.5.3"
+	}
+}

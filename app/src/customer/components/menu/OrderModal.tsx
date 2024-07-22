@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Modal, Image, Button } from "antd";
 import { CheckCircleOutlined } from "@ant-design/icons";
-import Menu from "../../core/MenuEntry";
-import { useCreateOrder } from "../../api/";
+import Menu from "../../../core/MenuEntry";
+import { useCreateOrder } from "../../../api/";
 
 type Props = {
 	orderProps: { menuItem: Menu | undefined; showModal: boolean };
@@ -96,7 +96,9 @@ const OrderModal = ({ orderProps, onClose }: Props) => {
 						marginTop: 20,
 					}}
 				>
-					<Button disabled={amount === 1} onClick={decreaseCount}>-</Button>
+					<Button disabled={amount === 1} onClick={decreaseCount}>
+						-
+					</Button>
 					<span style={{ margin: "0 10px", fontSize: "16px" }}>{amount}</span>
 					<Button onClick={increaseCount}>+</Button>
 				</div>

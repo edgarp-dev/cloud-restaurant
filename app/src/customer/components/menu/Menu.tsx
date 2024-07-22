@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { Flex, Layout } from "antd";
-import { useMenu } from "../../api";
-import Empty from "../ui/empty";
+import { useMenu } from "../../../api";
+import Empty from "../../../ui/empty";
 import MenuItem from "./MenuItem";
-import MenuEntry from "../../core/MenuEntry";
+import MenuEntry from "../../../core/MenuEntry";
 import OrderModal from "./OrderModal";
 
 const { Content } = Layout;

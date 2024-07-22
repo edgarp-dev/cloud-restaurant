@@ -1,10 +1,10 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { userOrdersByUser } from "../../api";
-import Loader from "../ui/loader";
+import { userOrdersByUser } from "../../../api";
+import Loader from "../../../ui/loader";
 import OrdersTable from "./OrdersTable";
-import Empty from "../ui/empty";
-import Order from "../../core/Order";
+import Empty from "../../../ui/empty";
+import Order from "../../../core/Order";
 
 const OrdersList = () => {
 	const { status, data } = userOrdersByUser();
@@ -17,7 +17,7 @@ const OrdersList = () => {
 	const onRowClick = (order: Order) => {
 		const { id } = order;
 		navigate(`/orders/${id}`);
-	}
+	};
 
 	return <OrdersTable orders={data} onRowClick={onRowClick} />;
 };

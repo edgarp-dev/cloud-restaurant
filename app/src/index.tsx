@@ -4,11 +4,12 @@ import "@aws-amplify/ui-react/styles.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Amplify } from "aws-amplify";
-import { Authenticator } from "@aws-amplify/ui-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Authenticator } from "@aws-amplify/ui-react";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import awsExports from "./aws-exports";
+import SignUp from "./ui/sign-up";
 
 Amplify.configure(awsExports);
 const queryClient = new QueryClient();
@@ -16,9 +17,16 @@ const queryClient = new QueryClient();
 const root = ReactDOM.createRoot(
 	document.getElementById("root") as HTMLElement
 );
+
 root.render(
 	<React.StrictMode>
-		<Authenticator>
+		<Authenticator
+			components={{
+				SignUp: {
+					FormFields: SignUp,
+				},
+			}}
+		>
 			<QueryClientProvider client={queryClient}>
 				<App />
 			</QueryClientProvider>

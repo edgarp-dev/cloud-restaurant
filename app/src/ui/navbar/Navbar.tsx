@@ -1,17 +1,32 @@
 import React from "react";
-import { Layout, Dropdown, Avatar } from "antd";
+import { Layout, Dropdown, Avatar, MenuProps } from "antd";
 import { UserOutlined } from "@ant-design/icons";
-import { ItemType } from "antd/es/menu/interface";
-import { Link } from "react-router-dom";
+import { Link, redirect } from "react-router-dom";
+import { Authenticator } from "@aws-amplify/ui-react";
+import NavbarMenuItem from "./NavbarMenutem";
+import { useNavigate } from "react-router-dom";
+import { signOut } from "aws-amplify/auth";
 
 const { Header } = Layout;
 
 type Props = {
-	menuItems: ItemType[];
 	links: { title: string; path: string }[];
 };
 
-const Navbar = ({ menuItems, links }: Props) => {
+const Navbar = ({ links }: Props) => {
+	const navigate = useNavigate();
+	const handleSignOut = () => {
+		signOut();
+		navigate("/");
+	};
+
+	const menuItems: MenuProps["items"] = [
+		{
+			key: "1",
+			label: <NavbarMenuItem text="Logout" onClick={handleSignOut} />,
+		},
+	];
+
 	return (
 		<Layout>
 			<Header
