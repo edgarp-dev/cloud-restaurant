@@ -4,6 +4,8 @@ import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as iam from "aws-cdk-lib/aws-iam";
 import path from "path";
+import * as fs from "fs-extra";
+import { execSync } from "child_process";
 
 type StackOutput = {
 	paymentProcessorLambda: lambda.Function;
@@ -86,11 +88,32 @@ export class PaymentStack extends cdk.NestedStack {
 					{
 						bundling: {
 							image: lambda.Runtime.NODEJS_20_X.bundlingImage,
-							command: [
-								"bash",
-								"-c",
-								"npm install && npm run build && cp -r dist/* /asset-output/ && cp -r node_modules /asset-output/",
-							],
+							local: {
+								tryBundle(outputDir: string) {
+									execSync("./build.sh", {
+										cwd: path.join(
+											__dirname,
+											"..",
+											"..",
+											"payment-processor-lambda"
+										),
+									});
+
+									const buildPath = path.join(
+										__dirname,
+										"..",
+										"..",
+										"payment-processor-lambda",
+										"dist"
+									);
+
+									fs.copySync(buildPath, outputDir);
+
+									fs.removeSync(buildPath);
+
+									return true;
+								},
+							},
 						},
 					}
 				),
