@@ -6,7 +6,10 @@ import * as sqs from "aws-cdk-lib/aws-sqs";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as sns from "aws-cdk-lib/aws-sns";
 import path from "path";
+import * as fs from "fs-extra";
+import { execSync } from "child_process";
 
 type StackOutput = {
 	ordersRestApi: apigateway.RestApi;
@@ -23,7 +26,10 @@ export class OrdersStack extends cdk.NestedStack {
 		this.env = this.node.tryGetContext("env");
 	}
 
-	public boostrap(userPool: cognito.UserPool): StackOutput {
+	public boostrap(
+		userPool: cognito.UserPool,
+		restaurantTopic: sns.Topic
+	): StackOutput {
 		const menuTable = this.createMenuTable();
 		const ordersQueue = this.createOrdersQueue();
 		const ordersTable = this.createOrdersTable();
@@ -32,7 +38,8 @@ export class OrdersStack extends cdk.NestedStack {
 		const restApiLambda = this.createRestApiLambda(
 			menuTable,
 			ordersTable,
-			ordersQueue
+			ordersQueue,
+			restaurantTopic
 		);
 		this.createRestApiResources(restApi, restApiLambda, authorizer);
 
@@ -101,7 +108,8 @@ export class OrdersStack extends cdk.NestedStack {
 	private createRestApiLambda(
 		menuTable: dynamodb.Table,
 		ordersTable: dynamodb.Table,
-		ordersQueue: sqs.Queue
+		ordersQueue: sqs.Queue,
+		restaurantsTopic: sns.Topic
 	): lambda.Function {
 		const role = new iam.Role(this, "OrdersRestApiLambdaExecutionRole", {
 			assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
@@ -138,6 +146,20 @@ export class OrdersStack extends cdk.NestedStack {
 
 		role.addToPolicy(
 			new iam.PolicyStatement({
+				actions: ["sns:Subscribe"],
+				resources: [restaurantsTopic.topicArn],
+			})
+		);
+
+		role.addToPolicy(
+			new iam.PolicyStatement({
+				actions: ["sns:CreatePlatformEndpoint"],
+				resources: ["*"],
+			})
+		);
+
+		role.addToPolicy(
+			new iam.PolicyStatement({
 				actions: [
 					"logs:CreateLogGroup",
 					"logs:CreateLogStream",
@@ -155,17 +177,28 @@ export class OrdersStack extends cdk.NestedStack {
 			code: lambda.Code.fromAsset(path.join(__dirname, "..", "..", "api"), {
 				bundling: {
 					image: lambda.Runtime.NODEJS_20_X.bundlingImage,
-					command: [
-						"bash",
-						"-c",
-						"npm install && npm run build && cp -r dist/* /asset-output/ && cp -r node_modules /asset-output/",
-					],
+					local: {
+						tryBundle(outputDir: string) {
+							execSync("./build.sh", {
+								cwd: path.join(__dirname, "..", "..", "api"),
+							});
+
+							const buildPath = path.join(__dirname, "..", "..", "api", "dist");
+
+							fs.copySync(buildPath, outputDir);
+
+							fs.removeSync(buildPath);
+
+							return true;
+						},
+					},
 				},
 			}),
 			environment: {
 				MENU_TABLE: menuTable.tableName,
 				ORDERS_QUEUE_URL: ordersQueue.queueUrl,
 				ORDERS_TABLE: ordersTable.tableName,
+				RESTAURANTS_TOPIC: restaurantsTopic.topicArn,
 			},
 			role,
 		});

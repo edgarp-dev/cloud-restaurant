@@ -4,6 +4,8 @@ import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import path from "path";
+import * as fs from "fs-extra";
+import { execSync } from "child_process";
 
 type StackOutput = {
 	userPool: cognito.UserPool;
@@ -47,28 +49,53 @@ export class UsersPoolStack extends cdk.NestedStack {
 			})
 		);
 
-		const postConfirmationLambda = new lambda.Function(this, "PreSignupLambda", {
-			functionName: `cloud-restaurant-presignup-${this.env}`,
-			runtime: lambda.Runtime.NODEJS_20_X,
-			handler: "index.handler",
-			code: lambda.Code.fromAsset(
-				path.join(__dirname, "..", "..", "post-confirmation-lambda"),
-				{
-					bundling: {
-						image: lambda.Runtime.NODEJS_20_X.bundlingImage,
-						command: [
-							"bash",
-							"-c",
-							"npm install && npm run build && cp -r dist/* /asset-output/ && cp -r node_modules /asset-output/",
-						],
-					},
-				}
-			),
-			environment: {
-				REGION: process.env.CDK_DEFAULT_REGION!,
-			},
-			role: postConfirmationLambdaRole,
-		});
+		const postConfirmationLambda = new lambda.Function(
+			this,
+			"PostConfirmationSignupLambda",
+			{
+				functionName: `cloud-restaurant-presignup-${this.env}`,
+				runtime: lambda.Runtime.NODEJS_20_X,
+				handler: "index.handler",
+				code: lambda.Code.fromAsset(
+					path.join(__dirname, "..", "..", "post-confirmation-lambda"),
+					{
+						bundling: {
+							image: lambda.Runtime.NODEJS_20_X.bundlingImage,
+							local: {
+								tryBundle(outputDir: string) {
+									execSync("./build.sh", {
+										cwd: path.join(
+											__dirname,
+											"..",
+											"..",
+											"post-confirmation-lambda"
+										),
+									});
+
+									const buildPath = path.join(
+										__dirname,
+										"..",
+										"..",
+										"post-confirmation-lambda",
+										"dist"
+									);
+
+									fs.copySync(buildPath, outputDir);
+
+									fs.removeSync(buildPath);
+
+									return true;
+								},
+							},
+						},
+					}
+				),
+				environment: {
+					REGION: process.env.CDK_DEFAULT_REGION!,
+				},
+				role: postConfirmationLambdaRole,
+			}
+		);
 
 		const userPool = new cognito.UserPool(this, "UserPool", {
 			userPoolName: `cloud-restaurant-user-pool-${this.env}`,

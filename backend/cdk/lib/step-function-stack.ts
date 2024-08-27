@@ -5,8 +5,11 @@ import * as sfnTasks from "aws-cdk-lib/aws-stepfunctions-tasks";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as sqs from "aws-cdk-lib/aws-sqs";
+import * as sns from "aws-cdk-lib/aws-sns";
 import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 import path from "path";
+import * as fs from "fs-extra";
+import { execSync } from "child_process";
 
 export class StepFunctionStack extends cdk.NestedStack {
 	private readonly env: string;
@@ -22,7 +25,8 @@ export class StepFunctionStack extends cdk.NestedStack {
 		paymentProcessorLambda: lambda.Function,
 		orderPreparationLambda: lambda.Function,
 		ordersQueue: sqs.Queue,
-		deliveryLambda: lambda.Function
+		deliveryLambda: lambda.Function,
+		restaurantsTopic: sns.Topic
 	): void {
 		const putItemIntoOrdersTableStep =
 			this.createPutItemOrderToOrderTableStep(ordersTable);
@@ -31,20 +35,25 @@ export class StepFunctionStack extends cdk.NestedStack {
 			paymentProcessorLambda
 		);
 
-		const updateOrderStatusStep = this.createUpdateOrderStatusStep(ordersTable);
+		const updateOrderStatusToReceivedStep =
+			this.createUpdateOrderStatusSToReceivedtep(ordersTable);
 
-		const waitForOrderPreparationStep = this.createWaitForOrderPreparationStep(
-			orderPreparationLambda
-		);
+		const sendOrderReceivedNotificationStep =
+			this.createSendRecievedNotificationStep(restaurantsTopic);
 
-		const waitForOrderDeliveryStep =
-			this.crateWaitForOrderDeliveryStep(deliveryLambda);
+		// const waitForOrderPreparationStep = this.createWaitForOrderPreparationStep(
+		// 	orderPreparationLambda
+		// );
+
+		// const waitForOrderDeliveryStep =
+		// 	this.crateWaitForOrderDeliveryStep(deliveryLambda);
 
 		const stepFunctionStepsChain = putItemIntoOrdersTableStep
 			.next(processPaymentStep)
-			.next(updateOrderStatusStep)
-			.next(waitForOrderPreparationStep)
-			.next(waitForOrderDeliveryStep);
+			.next(updateOrderStatusToReceivedStep)
+			.next(sendOrderReceivedNotificationStep);
+		// .next(waitForOrderPreparationStep)
+		// .next(waitForOrderDeliveryStep);
 
 		const processOrderStepFunction = new sfn.StateMachine(
 			this,
@@ -56,6 +65,8 @@ export class StepFunctionStack extends cdk.NestedStack {
 				timeout: cdk.Duration.minutes(15),
 			}
 		);
+
+		restaurantsTopic.grantPublish(processOrderStepFunction);
 
 		this.crateStepFunctionLambdaTrigger(processOrderStepFunction, ordersQueue);
 	}
@@ -106,24 +117,44 @@ export class StepFunctionStack extends cdk.NestedStack {
 		});
 	}
 
-	private createUpdateOrderStatusStep(
+	private createUpdateOrderStatusSToReceivedtep(
 		ordersTable: dynamodb.Table
 	): cdk.aws_stepfunctions_tasks.DynamoUpdateItem {
-		return new sfnTasks.DynamoUpdateItem(this, "Update Order Status", {
-			table: ordersTable,
-			key: {
-				orderId: sfnTasks.DynamoAttributeValue.fromString(
-					sfn.JsonPath.stringAt("$.orderId")
-				),
+		return new sfnTasks.DynamoUpdateItem(
+			this,
+			"Update Order Status To Received",
+			{
+				table: ordersTable,
+				key: {
+					orderId: sfnTasks.DynamoAttributeValue.fromString(
+						sfn.JsonPath.stringAt("$.orderId")
+					),
+				},
+				updateExpression: "SET #orderStatus = :status",
+				expressionAttributeValues: {
+					":status": sfnTasks.DynamoAttributeValue.fromString("ORDER_RECEIVED"),
+				},
+				expressionAttributeNames: {
+					"#orderStatus": "status",
+				},
+				resultPath: "$.updateResult",
+			}
+		);
+	}
+
+	private createSendRecievedNotificationStep(
+		restaurantTopic: sns.Topic
+	): cdk.aws_stepfunctions_tasks.SnsPublish {
+		return new sfnTasks.SnsPublish(this, "SendOrderReceivedNotification", {
+			topic: restaurantTopic,
+			message: sfn.TaskInput.fromText("Order Received"),
+			messageAttributes: {
+				orderId: {
+					dataType: sfnTasks.MessageAttributeDataType.STRING,
+					value: sfn.JsonPath.stringAt("$.orderId"),
+				},
 			},
-			updateExpression: "SET #orderStatus = :status",
-			expressionAttributeValues: {
-				":status": sfnTasks.DynamoAttributeValue.fromString("ORDER_RECEIVED"),
-			},
-			expressionAttributeNames: {
-				"#orderStatus": "status",
-			},
-			resultPath: "$.updateResult",
+			resultPath: "$.sns",
 		});
 	}
 
@@ -171,11 +202,32 @@ export class StepFunctionStack extends cdk.NestedStack {
 					{
 						bundling: {
 							image: lambda.Runtime.NODEJS_20_X.bundlingImage,
-							command: [
-								"bash",
-								"-c",
-								"npm install && npm run build && cp -r dist/* /asset-output/ && cp -r node_modules /asset-output/",
-							],
+							local: {
+								tryBundle(outputDir: string) {
+									execSync("./build.sh", {
+										cwd: path.join(
+											__dirname,
+											"..",
+											"..",
+											"step-function-trigger-lambda"
+										),
+									});
+
+									const buildPath = path.join(
+										__dirname,
+										"..",
+										"..",
+										"step-function-trigger-lambda",
+										"dist"
+									);
+
+									fs.copySync(buildPath, outputDir);
+
+									fs.removeSync(buildPath);
+
+									return true;
+								},
+							},
 						},
 					}
 				),
